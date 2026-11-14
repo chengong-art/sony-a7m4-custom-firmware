@@ -37,6 +37,11 @@
 > [macOS 适配说明](docs/setup-macos.md)，云端 VM 排错见
 > [cloud-vm-troubleshooting.md](docs/cloud-vm-troubleshooting.md)。
 
+> **致谢**：特别感谢上游 [Erlla/sony-a7m4-custom-firmware](https://github.com/Erlla/sony-a7m4-custom-firmware)
+> 作者及全部贡献者——本移植的全部固件研究、配方与工具链均建立在其工作之上；
+> 感谢本仓库 [chengong-art/sony-a7m4-custom-firmware](https://github.com/chengong-art/sony-a7m4-custom-firmware)
+> 作者对该项目的维护与分享。
+
 ## 一、免 Fastboot 安装固件
 
 使用普通 USB 数据线，通过 **M4 相机工具**准备更新环境，再由相机从 SD 卡安装固件。相机须能正常开机并进入 USB 海量存储模式。

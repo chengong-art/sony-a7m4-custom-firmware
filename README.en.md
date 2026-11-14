@@ -37,6 +37,13 @@ Provides installation without Fastboot, Fastboot maintenance tools and source fo
 > addresses and hash pins are unchanged. See [macOS notes](docs/setup-macos.en.md)
 > and [cloud VM troubleshooting](docs/cloud-vm-troubleshooting.md).
 
+> **Acknowledgements**: special thanks to the author and all contributors of the
+> upstream [Erlla/sony-a7m4-custom-firmware](https://github.com/Erlla/sony-a7m4-custom-firmware)
+> project — every firmware recipe, research result and tool in this port builds
+> on their work; and to the maintainer of
+> [chengong-art/sony-a7m4-custom-firmware](https://github.com/chengong-art/sony-a7m4-custom-firmware)
+> for keeping and sharing this repository.
+
 ## 1. Install firmware without Fastboot
 
 Use a normal USB data cable and **M4 Camera Tool** to prepare the updater, then install firmware from the camera SD card. The camera must boot normally and enter USB mass-storage mode.
