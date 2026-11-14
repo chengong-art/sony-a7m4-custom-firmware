@@ -124,14 +124,18 @@ def verify(dat, plain, public_pem, warm_boot_marker=b"WBI3"):
                 need(name not in destination, "Duplicate checksum row: " + name)
                 destination.append(name)
         templates = {name for name in members if name.startswith("0110_backup/") and name.endswith(".bin")}
-        need(len(templates) == 32 and set(backup_checked) == templates, "Incomplete backup template CRC manifest")
+        backup_files = {name for name in members if name.startswith("0110_backup/")}
+        need(len(templates) == 32 and set(backup_checked) == backup_files,
+             "Incomplete backup file CRC manifest")
         position, _ = members["0700_part_image/dev/nflasha5"]
         reference.seek(position)
         need(exact(reference, 4) == warm_boot_marker, "Warm-boot marker")
     return {"blocks_verified": block_count, "plaintext_sha256": plain_hash.hexdigest(),
             "plaintext_size": plain_size, "compared_byte_for_byte": True, "rsa_signature_verified": True,
             "dend_crc_verified": True, "header_crc_verified": True, "images_crc_verified": checked,
-            "backup_templates_crc_verified": backup_checked,
+            "backup_templates_crc_verified": [name for name in backup_checked if name in templates],
+            "backup_files_crc_verified": backup_checked,
+            "backup_metadata_crc_verified": sorted(set(backup_checked) - templates),
             "warm_boot_marker": warm_boot_marker.decode("ascii"), "camera_io": False, "hardware_acceptance": False}
 
 

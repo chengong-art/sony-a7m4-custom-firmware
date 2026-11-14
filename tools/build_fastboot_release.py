@@ -6,8 +6,9 @@ from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULES = ('__init__', '__main__', 'cli', 'common', 'transport', 'hardware', 'engine',
-           'patching', 'fat', 'maintenance', 'demo', 'recover_sd', 'sd_recovery')
+MODULES = ('__init__', '__main__', 'cli', 'common', 'host', 'state', 'transport',
+           'hardware', 'engine', 'patching', 'fat', 'maintenance', 'demo',
+           'recover_sd', 'sd_recovery')
 ENTRIES = ('进入fastboot', '退出fastboot开机', '备份全部数据', '查看或设置固件版本',
            '刷入验签跳过版更新器', '恢复官方验签公钥', '一键救砖_从SD卡恢复',
            '只检查fastboot连接', '安装Fastboot驱动')

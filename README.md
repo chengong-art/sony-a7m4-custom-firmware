@@ -31,6 +31,12 @@
 
 提供免 Fastboot 安装方法、Fastboot 维护工具与固件功能修改源码。各方法的适用基线以对应文档中的文件哈希为准。
 
+> **macOS 分支**：本目录为 `Erlla/sony-a7m4-custom-firmware` `917145d4…` 的
+> macOS 移植，主机侧做了 macOS 适配（驱动绑定、设备锁、BOOTSEL 卷、SquashFS
+> 工具、`.command` 入口）。固件配方、地址与哈希钉全部未改。安装与验证边界见
+> [macOS 适配说明](docs/setup-macos.md)，云端 VM 排错见
+> [cloud-vm-troubleshooting.md](docs/cloud-vm-troubleshooting.md)。
+
 ## 一、免 Fastboot 安装固件
 
 使用普通 USB 数据线，通过 **M4 相机工具**准备更新环境，再由相机从 SD 卡安装固件。相机须能正常开机并进入 USB 海量存储模式。
@@ -106,9 +112,9 @@ Fastboot 路线需要 **Multi 接口刷机线与 RP2040-Zero 启动桥**，普�
 
 **Windows x64 便携版自带 Python、依赖库、Fastboot、SquashFS 工具和 WinUSB 安装器，完整解压后直接运行 BAT。** 新电脑首次安装驱动需管理员授权，并按[驱动说明](fastboot/README.md#便携版)载入 Fastboot 预设。便携版构建器为 `tools/build_fastboot_portable.py`；运行时和工具只进入 Release ZIP。
 
-支持完整备份、版本查看与设置、自签更新器构建、同机备份恢复和恢复官方验签。环境要求：**Windows 10 / 11、Python 3.11+**。
+支持完整备份、版本查看与设置、自签更新器构建、同机备份恢复和恢复官方验签。环境要求：**Windows 10 / 11 或 macOS 12+、Python 3.11+**。
 
-克隆仓库后，运行 `setup.bat` 安装依赖，再运行 `advanced/进阶维护菜单.bat`。外部工具与驱动按[环境说明](docs/setup.md)准备。
+克隆仓库后，运行 `setup.bat` 安装依赖，再运行 `advanced/进阶维护菜单.bat`；macOS 上对应 `advanced-macos/进阶维护菜单.command`。外部工具与驱动按[环境说明](docs/setup.md)准备。
 
 <details>
 <summary>命令行安装与启动</summary>

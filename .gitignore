@@ -30,7 +30,13 @@ sessions/
 *.pfx
 *.p12
 *.env
+# 与上游一致：维护者已明确授权公开这对实验签名身份（私钥本就是公开的），
+# 因此这里放行这两个文件。哈希钉在 keys/published/fingerprints.json，并由
+# tools/check_public_tree.py 逐次核验；其他任何 *.pem 仍然禁止入库。
 !keys/published/A7M4_updater_private.pem
 !keys/published/A7M4_updater_public.pem
 !fastboot/assets/fastboot.bin
 !fastboot/assets/uart_boot.ino.uf2
+
+# Generated macOS launcher bundle (rebuild with tools/make_app_macos.py)
+*.app/

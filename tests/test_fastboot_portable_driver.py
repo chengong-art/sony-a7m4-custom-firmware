@@ -19,6 +19,7 @@ def portable_assets(tmp_path):
         path = tmp_path / 'local' / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
+        path.chmod(0o755)
         files[name] = {'sha256': hashlib.sha256(data).hexdigest()}
     (tmp_path / 'manifest.local.json').write_text(json.dumps({'files': files}), 'utf8')
     return Assets(tmp_path)

@@ -1,7 +1,5 @@
 """Shared safety boundary for desktop and Agent operations."""
 from contextlib import contextmanager
-from dataclasses import asdict
-import ctypes
 import json
 import os
 from pathlib import Path
@@ -11,43 +9,15 @@ import threading
 import time
 import uuid
 
+from . import host
 from .common import Assets, ToolError, require, digest, sha256, atomic_json, read_json, data_dir, event
 from .fat import Fat
 from .transport import Fastboot, Partition, BOOT
 from .patching import Updater, version, set_version, new_keypair
 
-
-@contextmanager
-def hardware_lock():
-    """Serialize all toolkit instances, including separate GUI/Agent processes."""
-    if os.name == "nt":
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-        kernel.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p]
-        kernel.CreateMutexW.restype = ctypes.c_void_p
-        kernel.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
-        kernel.ReleaseMutex.argtypes = [ctypes.c_void_p]
-        kernel.CloseHandle.argtypes = [ctypes.c_void_p]
-        handle = kernel.CreateMutexW(None, False, "Local\\A7M4FastbootToolkit-Hardware")
-        require(handle, "LOCK", "Could not create device lock")
-        acquired = kernel.WaitForSingleObject(handle, 0) in (0, 0x80)
-        try:
-            require(acquired, "BUSY", "Another toolkit process is using the camera")
-            yield
-        finally:
-            if acquired:
-                kernel.ReleaseMutex(handle)
-            kernel.CloseHandle(handle)
-    else:
-        import fcntl
-        with open(Path(tempfile.gettempdir())/"a7m4-toolkit.lock", "a+") as stream:
-            try:
-                fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError as e:
-                raise ToolError("BUSY", "Another toolkit process is using the camera") from e
-            try:
-                yield
-            finally:
-                fcntl.flock(stream, fcntl.LOCK_UN)
+# One platform-aware lock implementation shared by the engine and the SD
+# recovery entry point; Windows keeps the named mutex, POSIX uses flock(2).
+hardware_lock = host.hardware_lock
 
 
 def content_binding(folder):
@@ -284,6 +254,10 @@ class Engine:
                 try:
                     require(shutil.disk_usage(self.home).free > plan["size"]+64*1024*1024, "DISK_SPACE", "Readback space was exhausted before the write")
                     self._emit("writing", partition=target, message="Writing; keep camera powered and connected / 正在写入，请勿断电或拔线")
+                    # Last check before the irreversible step: the device lock must
+                    # still be the one this process holds, or another instance may
+                    # be interleaving its own write. See host.DeviceLock.verify.
+                    host.verify_device_lock()
                     self.transport.flash(self.parts[target], staged)
                     self.state = "verifying"
                     verified = self._read(target, artifact.parent/"readback", "verify")
@@ -306,6 +280,7 @@ class Engine:
         with self.operation():
             require(self.state not in ("writing", "verifying", "recovery_required"), "STATE", "Resolve the failed write before rebooting")
             self.transport.select()
+            host.verify_device_lock()
             self.transport.reboot()
             self.state, self.plans = "disconnected", {}
             return self.status()

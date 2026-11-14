@@ -209,11 +209,17 @@ class Workflow(unittest.TestCase):
                 if fault == 'updater':
                     raise core.ToolError('UPDATER_PROFILE', 'unknown initrd')
                 return dict(mock=True)
-            if fault:
-                with self.assertRaises(core.ToolError):
-                    core.recover(fake, folder, {}, inspect, disk_free=0 if fault == 'disk' else 1 << 32, notify=lambda x: None)
-            else:
-                core.recover(fake, folder, {}, inspect, disk_free=1 << 32, notify=lambda x: None)
+            # recover() now re-validates the device lock immediately before its
+            # one permitted write (as the real entry points do). Hold a lock here
+            # so the fake path exercises the same guard the camera path does.
+            # The target is scoped to this test: taking the shared per-user lock
+            # would make the suite collide with a parallel run or an open toolkit.
+            with core.hardware_lock(Path(tmp) / 'device-lock'):
+                if fault:
+                    with self.assertRaises(core.ToolError):
+                        core.recover(fake, folder, {}, inspect, disk_free=0 if fault == 'disk' else 1 << 32, notify=lambda x: None)
+                else:
+                    core.recover(fake, folder, {}, inspect, disk_free=1 << 32, notify=lambda x: None)
             result = json.loads((folder / 'result.json').read_text('utf8'))
             if result.get('readback_verified'):
                 self.assertEqual(core.sha256(folder / 'nflasha2.after.bin'), result['candidate_sha256'])
@@ -228,6 +234,26 @@ class Workflow(unittest.TestCase):
         self.assertFalse(result['update_completed'])
         self.assertFalse(result['full_eMMC_backup'])
         self.assertFalse(result['NOR_direct_write'])
+
+    def test_write_and_reboot_revalidate_device_lock(self):
+        """The two verify_device_lock call sites (before the settings write and
+        before the reboot) are the last guard before irreversible steps; the
+        outer hardware_lock alone does not make them redundant."""
+        fake = FakeTransport(self.original)
+        marks = []
+        real_verify = core.host.verify_device_lock
+        def spy():
+            marks.append(len(fake.calls))
+            return real_verify()
+        with tempfile.TemporaryDirectory(prefix='sd-recovery-test-') as tmp:
+            folder = Path(tmp)
+            with patch.object(core.host, 'verify_device_lock', spy):
+                with core.hardware_lock(folder / 'device-lock'):
+                    core.recover(fake, folder, {}, lambda image, config: dict(mock=True),
+                                 disk_free=1 << 32, notify=lambda x: None)
+        flash_at = next(i for i, c in enumerate(fake.calls) if c[0] == 'flash')
+        reboot_at = next(i for i, c in enumerate(fake.calls) if c[0] == 'reboot')
+        self.assertEqual(marks, [flash_at, reboot_at])
 
     def test_already_ready_does_not_flash(self):
         calls, result = self.run_case(ready=True)
@@ -288,18 +314,33 @@ class CommandScope(unittest.TestCase):
                 self.assertEqual(backend.call_count, 1)
 
     def test_only_registered_fastboot_resources_are_required(self):
+        # Windows additionally requires the fastboot sibling DLLs; macOS needs
+        # only the native fastboot binary, so the expected set is platform
+        # dependent while the integrity check applies to both.
         from a7m4.common import Assets
+        from a7m4 import host
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
             (base / 'local/bin').mkdir(parents=True)
+            names = (('fastboot.exe', 'AdbWinApi.dll', 'AdbWinUsbApi.dll')
+                     if host.IS_WINDOWS else ('fastboot.exe',))
             files = {}
-            for name in ('fastboot.exe', 'AdbWinApi.dll', 'AdbWinUsbApi.dll'):
+            for name in names:
                 path = base / 'local/bin' / name
                 path.write_bytes(b'synthetic, never executed')
+                if host.IS_POSIX:
+                    # A registered host binary is executable by construction;
+                    # register_resources.py sets this bit. Without it the pack
+                    # fails the execute-bit gate before the hash is compared.
+                    path.chmod(0o755)
                 files['bin/' + name] = {'sha256': core.sha256(path)}
             (base / 'manifest.local.json').write_text(json.dumps({'files': files}), 'utf8')
-            self.assertEqual(len(core.check_resources(Assets(base))['files']), 3)
-            (base / 'local/bin/AdbWinApi.dll').write_bytes(b'modified')
+            self.assertEqual(len(core.check_resources(Assets(base))['files']), len(names))
+            # Damage a *sibling* dependency, not the primary entry point: on
+            # Windows that is AdbWinApi.dll exactly as upstream tested, so the
+            # assertion that companion binaries are hash-checked too is kept.
+            damaged = 'AdbWinApi.dll' if host.IS_WINDOWS else names[0]
+            (base / 'local/bin' / damaged).write_bytes(b'modified')
             with self.assertRaises(core.ToolError) as caught:
                 core.check_resources(Assets(base))
             self.assertEqual(caught.exception.code, 'ASSET_INTEGRITY')
