@@ -12,6 +12,7 @@ from a7m4.patching import set_version, version, new_keypair, public_key, patch_l
 from a7m4.transport import parse_partitions, Fastboot
 from a7m4.hardware import boot_records, uf2_check
 from a7m4.cli import serve, dispatch
+from a7m4 import host
 
 
 @pytest.fixture
@@ -177,6 +178,37 @@ def test_artifact_tamper_rejected(setup):
     with pytest.raises(ToolError, match="Prepared image changed"):
         engine.apply(plan["plan_id"], plan["confirmation"])
     assert not device.writes
+
+
+def test_write_revalidates_device_lock_immediately_before_flash(setup, monkeypatch):
+    """`operation()` holding `hardware_lock` is not enough: the pre-write
+    re-verification at the flash call site must exist, or a lost lock would let
+    another process interleave its own write. Deleting that call must fail."""
+    engine, device = ready(setup)
+    plan = engine.prepare("set_version", value="2.01")
+    events = []
+    real_verify = host.verify_device_lock
+    real_flash = device.flash
+    monkeypatch.setattr(host, "verify_device_lock",
+                        lambda: (events.append("verify"), real_verify()))
+    monkeypatch.setattr(device, "flash",
+                        lambda *a, **k: (events.append("flash"), real_flash(*a, **k)))
+    engine.apply(plan["plan_id"], plan["confirmation"])
+    assert events[-1] == "flash" and "verify" in events
+    assert events.index("verify") < events.index("flash")
+
+
+def test_reboot_revalidates_device_lock_before_commanding(setup, monkeypatch):
+    """Reboot is a camera state change too; it must re-verify the held lock
+    before `transport.reboot`, not only rely on the outer operation lock."""
+    engine, device = ready(setup)
+    events = []
+    real_verify = host.verify_device_lock
+    monkeypatch.setattr(host, "verify_device_lock",
+                        lambda: (events.append("verify"), real_verify()))
+    monkeypatch.setattr(device, "reboot", lambda *a, **k: events.append("reboot"))
+    engine.reboot()
+    assert events == ["verify", "reboot"]
 
 
 def test_returned_plan_mutation_does_not_change_authority(setup):

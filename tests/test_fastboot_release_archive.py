@@ -28,7 +28,10 @@ def test_recovery_archive_has_importable_source_and_exact_profile(tmp_path):
         assert (package / name).read_bytes() == source_license.read_bytes()
     source = Path(__file__).resolve().parents[1] / 'a7m4/profiles/sd-recovery.json'
     assert (package / 'a7m4/profiles/sd-recovery.json').read_bytes() == source.read_bytes()
-    result = subprocess.run([sys.executable, '-B', '-c',
+    # -S keeps site-packages (and any editable-install hook for this repo) off
+    # sys.path so the archive is proven self-contained, not merely importable in
+    # a developer checkout.
+    result = subprocess.run([sys.executable, '-B', '-S', '-c',
                              'from a7m4.recover_sd import main; '
                              'from a7m4.sd_recovery import read_config; '
                              'assert read_config()["product"] == "ILCE-7M4"'],

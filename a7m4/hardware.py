@@ -1,32 +1,22 @@
-"""RP2040 serial boot protocol and Windows driver preparation.
+"""RP2040 serial boot protocol and host USB-driver preparation.
 
 Wire-format interoperability based on ILCE-7M4-RE and the user's existing tool.
 No driver installation or serial reset occurs at import time.
+
+Windows needs a WinUSB INF bound to the payload device; macOS binds Apple's
+USB stack automatically, so the same step becomes a verified no-op there.
 """
-import ctypes
-import os
-from pathlib import Path
 import shutil
 import struct
-import subprocess
 import time
 import zlib
+from . import host
 from .common import ToolError, require, run, event
 
 
 def bootsel_drives():
-    if os.name != "nt":
-        return []
-    found = []
-    for letter in "DEFGHIJKLMNOPQRSTUVWXYZ":
-        root = Path(letter + ":/")
-        try:
-            text = (root / "INFO_UF2.TXT").read_text(encoding="utf-8", errors="replace")
-            if "Board-ID: RPI-RP2" in text and "RP2040" in text:
-                found.append(root)
-        except OSError:
-            pass
-    return found
+    """Mounted RP2040 BOOTSEL volumes (drive letters or /Volumes entries)."""
+    return host.bootsel_volumes()
 
 
 def rp_ports():
@@ -144,36 +134,50 @@ def prepare_rp(assets, callback):
 
 
 def install_driver(assets, callback):
-    require(os.name == "nt", "PLATFORM", "Automatic driver installation requires Windows")
-    # Validate every driver file, including signed catalogs, before elevation.
-    from .common import read_json
-    files = read_json(assets.base / "manifest.local.json")["files"]
-    if "driver/zadig.exe" in files:
-        executable = assets.get("driver/zadig.exe")
-        assets.get("driver/zadig.ini")
-        preset = assets.get("driver/A7M4-Fastboot.cfg")
-        event(callback, "driver", message="在驱动窗口选择 Device → Load Preset Device，载入 " + str(preset) +
-              "；确认 VID 18D1 / PID 4EE0 与 WinUSB 后点击安装。 / Load the bundled A7M4-Fastboot.cfg preset, then install WinUSB.")
-        exe = str(executable).replace("'", "''")
-        folder = str(executable.parent).replace("'", "''")
-        script = ("$ErrorActionPreference='Stop'; $p=Start-Process -FilePath '" + exe +
-                  "' -WorkingDirectory '" + folder +
-                  "' -Verb RunAs -WindowStyle Normal -Wait -PassThru; exit $p.ExitCode")
-        run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script], timeout=600)
-        return
-    for name in files:
-        if name.startswith("driver/"):
-            assets.get(name)
-    inf = assets.get("driver/android_winusb.inf")
-    require("VID_18D1&PID_4EE0" in inf.read_text(encoding="utf-8-sig", errors="replace"), "DRIVER", "Driver does not match the payload USB ID")
-    event(callback, "driver", message="Installing WinUSB; accept the Windows UAC prompt / 安装 WinUSB，请接受系统 UAC 提示")
-    # Elevate only pnputil. No persistent elevated task, service or policy changes.
-    path = str(inf).replace("'", "''")
-    script = "$ErrorActionPreference='Stop'; $p=Start-Process -FilePath ($env:WINDIR+'\\System32\\pnputil.exe') -ArgumentList '/add-driver',('\"'+'" + path + "'+'\"'),'/install' -Verb RunAs -WindowStyle Hidden -Wait -PassThru; if ($p.ExitCode -notin @(0,3010)) { exit $p.ExitCode }"
-    try:
-        run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script], timeout=180)
-    except ToolError as e:
-        raise ToolError("DRIVER_INSTALL", str(e), "Accept the administrator prompt. If Windows blocks the signed driver, use Device Manager to install the provided INF; keep driver-signature enforcement enabled.") from e
+    """Bind the payload USB device to a host driver.
+
+    Windows opens the bundled Zadig preset for a guided WinUSB install when a
+    zadig pack is registered, otherwise installs the bundled signed WinUSB INF
+    through an elevated pnputil call. macOS already binds Apple's USB stack to
+    VID_18D1/PID_4EE0, so the step verifies that no driver resource is required
+    and records the no-op instead of pretending an installation happened.
+    """
+    if host.IS_WINDOWS:
+        # Validate every driver file, including signed catalogs, before elevation.
+        from .common import read_json
+        files = read_json(assets.base / "manifest.local.json")["files"]
+        if "driver/zadig.exe" in files:
+            executable = assets.get("driver/zadig.exe")
+            assets.get("driver/zadig.ini")
+            preset = assets.get("driver/A7M4-Fastboot.cfg")
+            event(callback, "driver", message="在驱动窗口选择 Device → Load Preset Device，载入 " + str(preset) +
+                  "；确认 VID 18D1 / PID 4EE0 与 WinUSB 后点击安装。 / Load the bundled A7M4-Fastboot.cfg preset, then install WinUSB.")
+            exe = str(executable).replace("'", "''")
+            folder = str(executable.parent).replace("'", "''")
+            script = ("$ErrorActionPreference='Stop'; $p=Start-Process -FilePath '" + exe +
+                      "' -WorkingDirectory '" + folder +
+                      "' -Verb RunAs -WindowStyle Normal -Wait -PassThru; exit $p.ExitCode")
+            run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script], timeout=600)
+            return {"driver": "zadig-elevated-ui", "camera_io": False}
+        for name in files:
+            if name.startswith("driver/"):
+                assets.get(name)
+        inf = assets.get("driver/android_winusb.inf")
+        require("VID_18D1&PID_4EE0" in inf.read_text(encoding="utf-8-sig", errors="replace"), "DRIVER", "Driver does not match the payload USB ID")
+        event(callback, "driver", message="Installing WinUSB; accept the Windows UAC prompt / 安装 WinUSB，请接受系统 UAC 提示")
+        # Elevate only pnputil. No persistent elevated task, service or policy changes.
+        path = str(inf).replace("'", "''")
+        script = "$ErrorActionPreference='Stop'; $p=Start-Process -FilePath ($env:WINDIR+'\\System32\\pnputil.exe') -ArgumentList '/add-driver',('\"'+'" + path + "'+'\"'),'/install' -Verb RunAs -WindowStyle Hidden -Wait -PassThru; if ($p.ExitCode -notin @(0,3010)) { exit $p.ExitCode }"
+        try:
+            run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script], timeout=180)
+        except ToolError as e:
+            raise ToolError("DRIVER_INSTALL", str(e), "Accept the administrator prompt. If Windows blocks the signed driver, use Device Manager to install the provided INF; keep driver-signature enforcement enabled.") from e
+        return {"driver": "winusb-installed", "camera_io": False}
+    require(host.IS_MACOS, "PLATFORM", "Host driver binding is implemented for Windows and macOS only",
+            "The fastboot protocol path itself is platform independent; only driver binding differs.")
+    # Do not claim a binding we did not observe: report what the host requires.
+    event(callback, "driver", message="No driver install needed on macOS; Apple's USB stack binds the payload device / macOS 无需安装驱动")
+    return {"driver": "not-required-on-macos", "camera_io": False}
 
 
 def enter_fastboot(transport, assets, callback):
@@ -181,7 +185,7 @@ def enter_fastboot(transport, assets, callback):
     require(status["ready"], "ASSETS_MISSING", "\n".join(status["errors"]))
     if transport.devices():
         return transport.select()
-    if os.name == "nt":
+    if host.IS_WINDOWS:
         # A camera already running the payload may only be missing its driver.
         # Recover that state without requiring an RP2040 reset/boot cycle.
         found = run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
@@ -193,6 +197,15 @@ def enter_fastboot(transport, assets, callback):
                     return transport.select()
                 time.sleep(1)
             raise ToolError("DRIVER_BINDING", "Fastboot USB device exists but the driver is not bound", "Reconnect the camera USB cable and install the Fastboot WinUSB driver, then run the read-only connection check.")
+    elif host.payload_usb_present():
+        # The payload is on the bus but fastboot cannot talk to it. macOS has no
+        # driver step to try, and resetting the RP2040 here would reboot a camera
+        # that is already waiting for us. Report the state instead of proceeding
+        # into `prepare_rp`, which is the path that injects the payload.
+        raise ToolError("USB_COMMUNICATION",
+                        "The fastboot payload is on USB but fastboot cannot enumerate it",
+                        "Close other tools that may hold the USB interface, then reconnect the camera. "
+                        "Do not start a boot cycle while the payload is already running.")
     prepare_rp(assets, callback)
     event(callback, "usb", message="Connect the camera USB cable / 请接入相机 USB 数据线")
     deadline, installed = time.monotonic()+60, False

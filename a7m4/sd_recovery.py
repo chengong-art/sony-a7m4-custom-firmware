@@ -1,7 +1,5 @@
 """Per-camera MODE5 trigger. No RAM entry, driver install or NOR writer."""
-from contextlib import contextmanager
 from datetime import datetime, timezone
-import ctypes
 import hashlib
 import json
 import os
@@ -9,6 +7,7 @@ from pathlib import Path
 import re
 import shutil
 
+from . import host
 from .common import Assets, ToolError, require, atomic_json, sha256, read_json
 from .fat import Fat
 from .transport import Fastboot
@@ -27,14 +26,22 @@ def read_config():
 
 
 def check_resources(assets=None):
-    """Use the public host's local manifest, never package external executables."""
+    """Use the public host's local manifest, never package external executables.
+
+    Windows needs the fastboot executable plus its sibling DLLs. On macOS the
+    same logical `bin/fastboot.exe` resolves to the native `bin/fastboot`, and
+    there are no DLLs to register, so the required set is that one binary.
+    """
     assets = assets or Assets()
     manifest = read_json(assets.base / 'manifest.local.json') if (assets.base / 'manifest.local.json').is_file() else {'files': {}}
-    names = {'bin/fastboot.exe'}
-    names.update(n for n in manifest['files'] if n.startswith('bin/') and n.lower().endswith('.dll'))
+    names = {n for n in host.RECOVERY_ASSETS if n == 'bin/fastboot.exe' or host.IS_WINDOWS}
+    if host.IS_WINDOWS:
+        names.update(n for n in manifest['files'] if n.startswith('bin/') and n.lower().endswith('.dll'))
     for name in sorted(names):
         assets.get(name)
-    return {'files': sorted(names), 'camera_io': False}
+    resolved = {name: assets.entry(name, manifest)[0] for name in sorted(names)}
+    return {'files': sorted(names), 'resolved': resolved, 'camera_io': False,
+            'platform': host.PLATFORM_LABEL}
 
 
 def command_failure(text, fallback_code='FASTBOOT_FAILED'):
@@ -240,25 +247,9 @@ def inspect_sd_environment(image, config):
                 host_read_SD_card=False)
 
 
-@contextmanager
-def hardware_lock():
-    require(os.name == 'nt', 'PLATFORM', '设备操作只支持Windows')
-    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
-    kernel.CreateMutexW.argtypes = (ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p)
-    kernel.CreateMutexW.restype = ctypes.c_void_p
-    kernel.WaitForSingleObject.argtypes = (ctypes.c_void_p, ctypes.c_uint32)
-    kernel.ReleaseMutex.argtypes = (ctypes.c_void_p,)
-    kernel.CloseHandle.argtypes = (ctypes.c_void_p,)
-    handle = kernel.CreateMutexW(None, False, 'Local\\A7M4FastbootToolkit-Hardware')
-    require(handle, 'LOCK', '不能创建设备锁')
-    acquired = kernel.WaitForSingleObject(handle, 0) in (0, 0x80)
-    try:
-        require(acquired, 'BUSY', '其他工具正在操作相机，请先关闭')
-        yield
-    finally:
-        if acquired:
-            kernel.ReleaseMutex(handle)
-        kernel.CloseHandle(handle)
+# Windows keeps the local named mutex; POSIX hosts take the same per-user
+# flock(2) lock the engine uses, so both entry points still exclude each other.
+hardware_lock = host.hardware_lock
 
 
 def recover(transport, folder, config, inspect_updater=inspect_sd_environment,
@@ -332,6 +323,9 @@ def recover(transport, folder, config, inspect_updater=inspect_sd_environment,
         if candidate != original:
             result.update(status='WRITING_TRIGGER', flash_attempted=True)
             save()
+            # Same guard as the engine write path: the device lock must still be
+            # the one this process holds at the moment of the irreversible step.
+            host.verify_device_lock()
             transport.write_settings(parts['nflasha2'], path, candidate_hash)
         result['status'] = 'VERIFYING_TRIGGER'
         save()
@@ -343,6 +337,9 @@ def recover(transport, folder, config, inspect_updater=inspect_sd_environment,
         save()
         result.update(status='REBOOT_SENDING', reboot_attempted=True)
         save()
+        # A reboot is a camera state change too; hold the same guarantee the
+        # write has, so an invalidated lock cannot interleave with another tool.
+        host.verify_device_lock()
         transport.reboot()
         result['status'] = 'SD_UPDATE_TRIGGERED_PENDING_CAMERA'
         save()

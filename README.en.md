@@ -31,6 +31,19 @@ English · [中文](README.md)
 
 Provides installation without Fastboot, Fastboot maintenance tools and source for firmware modifications. Supported input hashes are documented in each method guide.
 
+> **macOS branch**: this tree is a macOS port of `Erlla/sony-a7m4-custom-firmware`
+> `917145d4…` — host-side macOS adaptation only (driver binding, device lock,
+> BOOTSEL volumes, SquashFS tooling, `.command` launchers). Firmware recipes,
+> addresses and hash pins are unchanged. See [macOS notes](docs/setup-macos.en.md)
+> and [cloud VM troubleshooting](docs/cloud-vm-troubleshooting.md).
+
+> **Acknowledgements**: special thanks to the author and all contributors of the
+> upstream [Erlla/sony-a7m4-custom-firmware](https://github.com/Erlla/sony-a7m4-custom-firmware)
+> project — every firmware recipe, research result and tool in this port builds
+> on their work; and to the maintainer of
+> [chengong-art/sony-a7m4-custom-firmware](https://github.com/chengong-art/sony-a7m4-custom-firmware)
+> for keeping and sharing this repository.
+
 ## 1. Install firmware without Fastboot
 
 Use a normal USB data cable and **M4 Camera Tool** to prepare the updater, then install firmware from the camera SD card. The camera must boot normally and enter USB mass-storage mode.
@@ -106,9 +119,9 @@ The **[Fastboot toolkit](fastboot/README.md)** includes the camera boot assets, 
 
 **The Windows x64 portable archive includes Python, its dependencies, Fastboot, SquashFS tools and a WinUSB installer. Extract it completely and run the BAT entries.** First-time driver installation on a new computer requires administrator approval. Load the Fastboot preset as described in the driver instructions. The portable builder is `tools/build_fastboot_portable.py`, and runtime binaries and tools are distributed in the Release ZIP. [Driver instructions (Chinese)](fastboot/README.md#便携版)
 
-Includes complete backups, version inspection and editing, custom updater preparation, same-camera restoration and restoration of official verification. Requires **Windows 10 / 11 and Python 3.11+**.
+Includes complete backups, version inspection and editing, custom updater preparation, same-camera restoration and restoration of official verification. Requires **Windows 10 / 11 or macOS 12+, and Python 3.11+**.
 
-After cloning, run `setup.bat` to install dependencies, then `advanced/进阶维护菜单.bat`. Prepare external tools and drivers using the [setup guide](docs/setup.en.md).
+After cloning, run `setup.bat` to install dependencies, then `advanced/进阶维护菜单.bat`; on macOS the equivalent is `advanced-macos/进阶维护菜单.command`. Prepare external tools and drivers using the [setup guide](docs/setup.en.md).
 
 <details>
 <summary>Command-line installation and launch</summary>
