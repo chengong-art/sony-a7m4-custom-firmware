@@ -1,6 +1,6 @@
 # 外部组件分发权审计 / Redistribution audit
 
-2026-11-15，基于上游 `917145d4` 合并树（macOS 移植分支）。依据：
+2026-11-15，基于上游 `d3fa4c5a` 合并树（macOS 移植分支）。依据：
 `tools/check_public_tree.py` 实跑（807 文件、0 错误）、`THIRD_PARTY_NOTICES.md`、
 `fastboot/SOURCES.md`、`training/assets-manifest.json`、`training/third_party/source-manifest.json`、
 `no-fastboot-install/software/dependencies.json`、git 追踪文件扩展名清单。
