@@ -3,7 +3,7 @@
 [English](setup-macos.en.md) · [返回](../README.md)
 
 本目录是 [Erlla/sony-a7m4-custom-firmware](https://github.com/Erlla/sony-a7m4-custom-firmware)
-上游 HEAD `d3fa4c5a323e3868e06df840f3c27b941eec714f` 的 macOS 适配分支（初始移植基线为 `0332a1fa…`，2026-11-14、2026-11-15 已两次跟进上游）。上游只发布 Windows 10/11
+上游 HEAD `fc76ca8ce40910eb785f0098c5d24ff3a5beb309` 的 macOS 适配分支（初始移植基线为 `0332a1fa…`，2026-11-14、2026-11-15、2026-11-18 已三次跟进上游）。上游只发布 Windows 10/11
 主机工具；这里把它做成 macOS 可用的等价实现，**不改变任何固件侧配方、地址、哈希或验证边界**。
 
 相机侧的一切约束（原厂电池、完整 eMMC 备份、自制刷机线、精确哈希识别基线）完全继承上游，

@@ -32,7 +32,7 @@ English · [中文](README.md)
 Provides installation without Fastboot, Fastboot maintenance tools and source for firmware modifications. Supported input hashes are documented in each method guide.
 
 > **macOS branch**: this tree is a macOS port of `Erlla/sony-a7m4-custom-firmware`
-> `d3fa4c5a…` — host-side macOS adaptation only (driver binding, device lock,
+> `fc76ca8c…` — host-side macOS adaptation only (driver binding, device lock,
 > BOOTSEL volumes, SquashFS tooling, `.command` launchers). Firmware recipes,
 > addresses and hash pins are unchanged. See [macOS notes](docs/setup-macos.en.md)
 > and [cloud VM troubleshooting](docs/cloud-vm-troubleshooting.md).

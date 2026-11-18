@@ -31,7 +31,7 @@
 
 提供免 Fastboot 安装方法、Fastboot 维护工具与固件功能修改源码。各方法的适用基线以对应文档中的文件哈希为准。
 
-> **macOS 分支**：本目录为 `Erlla/sony-a7m4-custom-firmware` `d3fa4c5a…` 的
+> **macOS 分支**：本目录为 `Erlla/sony-a7m4-custom-firmware` `fc76ca8c…` 的
 > macOS 移植，主机侧做了 macOS 适配（驱动绑定、设备锁、BOOTSEL 卷、SquashFS
 > 工具、`.command` 入口）。固件配方、地址与哈希钉全部未改。安装与验证边界见
 > [macOS 适配说明](docs/setup-macos.md)，云端 VM 排错见

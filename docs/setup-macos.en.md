@@ -4,8 +4,8 @@
 
 This directory is a macOS adaptation of
 [Erlla/sony-a7m4-custom-firmware](https://github.com/Erlla/sony-a7m4-custom-firmware)
-at upstream HEAD `d3fa4c5a323e3868e06df840f3c27b941eec714f` (the initial port
-pinned `0332a1fa…`; it tracked upstream on 2026-11-14 and 2026-11-15). The upstream host
+at upstream HEAD `fc76ca8ce40910eb785f0098c5d24ff3a5beb309` (the initial port
+pinned `0332a1fa…`; it tracked upstream on 2026-11-14, 2026-11-15 and 2026-11-18). The upstream host
 toolkit targets Windows 10/11 only. Nothing here changes a firmware recipe,
 address, hash pin or verification boundary.
 

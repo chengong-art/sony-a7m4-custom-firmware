@@ -1,7 +1,7 @@
 # 外部组件分发权审计 / Redistribution audit
 
-2026-11-15，基于上游 `d3fa4c5a` 合并树（macOS 移植分支）。依据：
-`tools/check_public_tree.py` 实跑（807 文件、0 错误）、`THIRD_PARTY_NOTICES.md`、
+2026-11-15 审计，2026-11-18 复核上游 `d3fa4c5a` → `fc76ca8c` 增量（仅文档，无新增外部组件），基于上游 `fc76ca8c` 合并树（macOS 移植分支）。依据：
+`tools/check_public_tree.py` 实跑（810 文件、0 错误）、`THIRD_PARTY_NOTICES.md`、
 `fastboot/SOURCES.md`、`training/assets-manifest.json`、`training/third_party/source-manifest.json`、
 `no-fastboot-install/software/dependencies.json`、git 追踪文件扩展名清单。
 
@@ -20,7 +20,7 @@
 | docs 内生成图表/heatmap | ✅ 可发布 | 项目生成分析产物 |
 | `fastboot/driver/` 预设（cfg/ini） | ✅ 可发布 | 原创配置文本，非 Zadig 本体 |
 
-**机器门禁**：`tools/check_public_tree.py` 已通过（807 文件、0 错误）；git 追踪的二进制/密钥类文件恰为上述 4 个获授权项，无其他 `.bin/.exe/.dll/.pem` 等入树。
+**机器门禁**：`tools/check_public_tree.py` 已通过（810 文件、0 错误）；git 追踪的二进制/密钥类文件恰为上述 4 个获授权项，无其他 `.bin/.exe/.dll/.pem` 等入树。
 
 ## B. 不在仓库内、属「发布包输入」的外部组件
 
