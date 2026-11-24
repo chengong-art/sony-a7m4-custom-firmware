@@ -6,7 +6,7 @@
 
 | 接入方式 | 连接与认证 | 所在环境 | 修改方法 |
 |---|---|---|---|
-| Telnet | IP 网络 TCP 23；免口令、明文 | 普通拍摄系统 | [恢复 ULOGIO 网络和 USB 终端](telnet-usb.md) |
+| Telnet | IP 网络 TCP 23，明文；参考说明为免口令，身份验证边界未验收 | 普通拍摄系统 | [访问风险](telnet-usb.md#使用网络终端) |
 | USB Shell | Sony 服务 USB bulk；Senser 服务认证 | 普通拍摄系统 | [同一套 ULOGIO 修改](telnet-usb.md#开启与关闭-usb-终端) |
 | SSH / SFTP | IP 网络 TCP 22；公钥认证，登录名 service、实际 UID/GID 0 | 普通拍摄系统 | [复用 sshd，补齐启动与账号](ssh-sftp.md) |
 | Multi UART | Multi 线、RP2040 和 Cetus 桥接；115200 8N1 | p1 更新系统 | [建立独立 UART root shell](uart.md) |
@@ -17,7 +17,7 @@ SFTP 是 SSH 的子系统，Wi-Fi 是 IP 网络承载，不分别增加一种 Sh
 
 ## 选择与组合
 
-- **正常拍摄时需要网络或 USB root 终端**：ULOGIO 方法恢复 Telnet 与 USB 两个入口，两者已验证可共存。
+- **ULOGIO 的 Telnet 与 USB**。作者在其 r2 的 2026-10-30 实机轮次记录了共存，2026-11-16 另行复测了 Wi-Fi Telnet。自行重建及 macOS 分支的候选须按各自身份验收。见[验证范围](validation.md)。
 - **需要加密登录、PTY 或文件传输**：SSH 方法复用现有 sshd，支持公钥认证和 SFTP。
 - **需要不依赖普通 p15 系统的维护终端**：Multi UART 方法在更新环境运行，启用期间不能拍摄；移除启动标记后恢复普通启动。
 
