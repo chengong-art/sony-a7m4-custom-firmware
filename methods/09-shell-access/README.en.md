@@ -6,7 +6,7 @@ Four root-terminal access methods are documented for Sony ILCE-7M4 / A7 IV. The 
 
 | Access | Transport and authentication | Environment | Technical recipe |
 |---|---|---|---|
-| Telnet | IP network, TCP 23, plaintext without a login password | Normal camera system | [ULOGIO network and USB restoration](telnet-usb.md) |
+| Telnet | IP network, TCP 23, plaintext. The reference describes passwordless access. Authentication boundaries remain unverified. | Normal camera system | [Access risks](telnet-usb.md#使用网络终端) |
 | USB shell | Sony service USB bulk, after Senser authentication | Normal camera system | [The same ULOGIO recipe](telnet-usb.md) |
 | SSH / SFTP | IP network, TCP 22, public key; service account with UID/GID 0 | Normal camera system | [sshd startup and NSS account](ssh-sftp.md) |
 | Multi UART | Multi cable, RP2040, Cetus bridge; 115200 8N1 | p1 updater system | [Independent UART root shell](uart.md) |
@@ -17,7 +17,7 @@ The linked technical recipes are in Chinese. They describe **offline firmware in
 
 ## Choosing a method
 
-- Use ULOGIO restoration for Telnet or USB access in the normal shooting system. Their coexistence was verified.
+- The upstream author reported Telnet and USB coexistence with r2 on October 30, 2026, and separately retested Wi-Fi Telnet on November 16, 2026. Independently rebuilt and macOS-port candidates need their own evidence. See [validation boundaries](validation.md).
 - Use SSH for encrypted login, a PTY and SFTP. It reuses the daemon already shipped in the normal 6.02 system.
 - Use the p1/Cetus bridge for maintenance independent of normal p15 startup. Shooting is unavailable in that updater environment; removing its boot flags restores normal startup.
 
